@@ -1,0 +1,232 @@
+{
+  "system": {
+    "name": "查询泛化与多源搜索系统",
+    "version": "2.0.0",
+    "description": "支持意图分析和多源联网搜索的智能系统"
+  },
+  "generalization": {
+    "enabled": true,
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "base_url": "https://api.deepseek.com/v1",
+    "fallback_model": "deepseek-chat",
+    "timeout": 30,
+    "retry_count": 2,
+    "retry_delay": 1
+  },
+  "search": {
+    "enabled_providers": [
+      "aliyun",
+      "kimi"
+    ],
+    "multi_intent_search": {
+      "enabled": true,
+      "search_targets": [
+        "original",
+        "shallow",
+        "deep"
+      ],
+      "comment": "可选值: original(原始查询), shallow(浅层意图), deep(深层意图)"
+    },
+    "available_providers": {
+      "openai": {
+        "enabled": true,
+        "model": "gpt-4o-search-preview",
+        "timeout": 200,
+        "max_retries": 2,
+        "search_context_size": "medium"
+      },
+      "aliyun": {
+        "enabled": true,
+        "model": "qwen-plus-latest",
+        "timeout": 200,
+        "max_retries": 2,
+        "search_strategy": "max",
+        "forced_search": true,
+        "enable_source": true,
+        "enable_citation": true,
+        "comment": "使用原生 DashScope SDK，必定返回信息源列表"
+      },
+      "zhipu": {
+        "enabled": true,
+        "model": "glm-4-air",
+        "timeout": 200,
+        "max_retries": 2,
+        "search_engine": "search_pro",
+        "search_count": 30,
+        "search_recency_filter": "noLimit",
+        "content_size": "high",
+        "generate_answer": true,
+        "comment": "使用专用 Web Search API (/paas/v4/web_search)，启用意图识别，召回30个网页"
+      },
+      "kimi": {
+        "enabled": true,
+        "model": "kimi-k2.5",
+        "base_url": "http://10.225.31.12/v1",
+        "timeout": 200,
+        "max_retries": 2,
+        "temperature": 1.0,
+        "comment": "使用公司中转API（与gpt5相同），Kimi K2.5 模型，temperature必须为1.0"
+      }
+    },
+    "concurrent_search": true
+  },
+  "api_keys": {
+    "deepseek": "在这里填入你的密钥",
+    "kimi": "在这里填入你的密钥",
+    "openai": "在这里填入你的密钥",
+    "aliyun": "在这里填入你的密钥",
+    "zhipu": "在这里填入你的密钥",
+    "gpt5": "在这里填入你的密钥"
+  },
+  "output": {
+    "csv_encoding": "utf-8-sig",
+    "include_raw_results": false,
+    "include_metadata": true,
+    "timestamp_format": "%Y-%m-%d %H:%M:%S"
+  },
+  "prompts_file": "prompts.json",
+  "logging": {
+    "level": "INFO",
+    "file": "search_system.log",
+    "console_output": true
+  },
+  "batch_processing": {
+    "max_workers": 30,
+    "chunk_size": 100,
+    "batch_size": 10,
+    "batch_interval": 3.0,
+    "save_interval": 30,
+    "progress_file": "progress.json",
+    "comment": "批量处理配置: chunk_size=大批次数量(每次处理多少条), batch_size=小批次数量(每次提交多少条), batch_interval=小批次间隔(秒), max_workers=并发线程数, save_interval=每N条保存一次结果"
+  },
+  "answer_comparison": {
+    "enabled": true,
+    "evaluators": [
+      {
+        "name": "deepseek",
+        "provider": "deepseek",
+        "model": "deepseek-chat",
+        "base_url": "https://api.deepseek.com/v1",
+        "enabled": false,
+        "weight": 1.0,
+        "temperature": 0.3,
+        "comment": "DeepSeek OpenAI兼容接口（已禁用，改用Kimi）"
+      },
+      {
+        "name": "aliyun",
+        "provider": "aliyun",
+        "model": "qwen-max",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "enabled": false,
+        "weight": 1.0,
+        "temperature": 0.3,
+        "comment": "阿里云百炼 OpenAI兼容接口（暂时禁用，接口有403问题）"
+      },
+      {
+        "name": "gpt5",
+        "provider": "gpt5",
+        "model": "gpt-5.2",
+        "base_url": "http://10.225.31.12/v1",
+        "enabled": true,
+        "weight": 1.0,
+        "temperature": 1,
+        "is_reasoning_model": false,
+        "comment": "GPT-5.2 内网接口（普通模式，快速响应）"
+      },
+      {
+        "name": "gpt5_thinking",
+        "provider": "gpt5",
+        "model": "gpt-5.2",
+        "base_url": "http://10.225.31.12/v1",
+        "enabled": false,
+        "weight": 1.5,
+        "temperature": 1,
+        "is_reasoning_model": true,
+        "reasoning_effort": "medium",
+        "comment": "GPT-5.2 Thinking 思考模式（需要设置 reasoning.effort 参数，临时启用测试）"
+      },
+      {
+        "name": "zhipu",
+        "provider": "zhipu",
+        "model": "glm-4.7",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "enabled": false,
+        "weight": 1.0,
+        "temperature": 0.3,
+        "comment": "智谱AI OpenAI兼容接口（最新模型）"
+      },
+      {
+        "name": "kimi",
+        "provider": "kimi",
+        "model": "kimi-k2.5",
+        "base_url": "http://10.225.31.12/v1",
+        "enabled": true,
+        "weight": 1.0,
+        "temperature": 1.0,
+        "is_reasoning_model": false,
+        "comment": "Kimi K2.5 模型（默认有thinking能力，API不支持thinking参数；is_reasoning_model=false使用标准消息格式）"
+      },
+      {
+        "name": "kimi_thinking",
+        "provider": "kimi",
+        "model": "kimi-k2.5",
+        "base_url": "http://10.225.31.12/v1",
+        "enabled": false,
+        "weight": 1.5,
+        "temperature": 1.0,
+        "is_reasoning_model": true,
+        "comment": "Kimi K2.5 推理模式（默认支持thinking，返回reasoning_content）"
+      },
+      {
+        "name": "deepseek_r1",
+        "provider": "deepseek",
+        "model": "deepseek-reasoner",
+        "base_url": "https://api.deepseek.com/v1",
+        "enabled": false,
+        "weight": 1.0,
+        "temperature": 0.3,
+        "is_reasoning_model": true,
+        "comment": "DeepSeek R1 思考模型（支持推理过程，默认禁用）"
+      },
+      {
+        "name": "doubao",
+        "provider": "gpt5",
+        "model": "doubao-seed-1-8-251228",
+        "base_url": "http://10.225.31.12/v1",
+        "enabled": false,
+        "weight": 1.0,
+        "temperature": 0.3,
+        "is_reasoning_model": true,
+        "comment": "Doubao Seed Reasoning 模型（与 GPT-5 使用同一 API）"
+      }
+    ],
+    "timeout": 200,
+    "batch_workers": 50,
+    "comment": "多评估模型交叉验证配置。max_workers控制单条数据内评估模型的并发数，batch_workers控制同时处理多少条数据。推荐配置2-3个评估模型以实现交叉验证。"
+  },
+  "react_search": {
+    "enabled": true,
+    "implementation": "standard",
+    "max_steps": 3,
+    "max_sub_queries": 3,
+    "timeout": 200,
+    "comment": "ReAct 多步搜索配置：search_providers=ReAct使用的搜索提供商（独立配置），max_steps=最大迭代步数（建议2-3步）",
+    "search_providers": [
+      "aliyun",
+      "zhipu",
+      "kimi"
+    ]
+  },
+  "stage_models_default": {
+    "baseline_checker": "kimi",
+    "answer_consistency_checker": "kimi",
+    "answer_parser": "kimi",
+    "voting_verifier": "kimi_thinking",
+    "fact_error_checker": "kimi_thinking",
+    "hallucination_checker": "kimi_thinking",
+    "satisfaction_evaluator": "kimi",
+    "format_checker": "kimi",
+    "reflection_checker": "kimi_thinking"
+  }
+}

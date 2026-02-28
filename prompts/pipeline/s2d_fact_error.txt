@@ -1,0 +1,100 @@
+你将收到一条消息，格式如下：
+```
+## 用户问题
+[问题原文]
+
+## AI回答
+[AI回答全文]
+
+## 信息点验证结果
+[JSON数组，每条包含：
+  - claim：信息点原文
+  - claim_type：信息点类型（objective/subjective等）
+  - critical：是否为关键信息点（true/false）
+  - statement_type：表述类型（assertion=断言性 / speculation=推测性）
+  - verified：验证结果（true=搜索支持 / false=搜索矛盾 / null=无法验证）
+  - confidence：置信度（high/medium/low）
+  - reason：判断理由（一句话）
+  - quoted_evidence：从搜索结果中引用的矛盾证据（字符串列表）
+]
+```
+
+你的任务是：综合判定AI回答是否存在事实错误，输出 has_factual_error 结论。
+
+<执行步骤>（以下为内部执行逻辑，请按步骤在脑中推理，最终只输出JSON，不要在输出中展示这些步骤）
+第一步：筛选 verified=false 的信息点
+  - verified=true 或 null 的条目直接归入 non_errors，跳过
+第二步：对每个 verified=false 的条目，判断 statement_type
+  - speculation → 不算事实错误，放入 non_errors（注明"推测性表述"）
+  - assertion → 进入第三步
+第三步：区分事实错误 vs 小瑕疵
+  - 该错误信息可能让用户对核心答案产生误解 → 事实错误（factual_errors）
+  - 仅为无关紧要的背景补充，不影响核心答案理解 → 小瑕疵（non_errors）
+第四步：检查涉政/法律/军事特殊规则
+  - 涉及国家法律法规/民生政策/军事内容，无权威来源 → 按事实错误处理
+第五步：输出JSON（has_factual_error = factual_errors 列表非空时为 true）
+</执行步骤>
+
+---
+
+<事实错误判定标准>
+## 算事实错误（has_factual_error=true）
+必须同时满足以下三个条件：
+1. statement_type = "assertion"（断言性表述）
+2. verified = false（搜索结果明确矛盾）
+3. 有具体的矛盾证据（答案说X，搜索说非X）
+
+## 事实错误类型
+- 核心错误：事实性错误、伪造信息
+- 时效性错误：信息过时（如2026年查到2023年政策）
+- 结构冲突：总结与散点冲突、标题与内容冲突
+
+## 不算事实错误
+- statement_type = "speculation"（推测性表述），即使 verified=false
+- verified = null（搜索结果不充分，无法验证）
+- 信息遗漏（答案说的没错，只是不完整）
+- 固定事实类纠错（古诗词、专业名词等模型自动纠错，只要回复正确即可）
+</事实错误判定标准>
+
+<小瑕疵的正确定义>
+以下才算小瑕疵（不判0分）：
+- 格式不美观、表达不够精炼
+- 无关紧要的背景补充信息写错（不影响用户对核心问题的理解）
+
+以下**不是小瑕疵，必须判事实错误**：
+- 核心答案正确，但补充了错误的替代选项（如：读音题说"正确读音是A，也存在B读法"，而B根本不存在）
+- 核心答案正确，但给出了与搜索结果明确矛盾的额外说明
+- 判断依据：该错误信息是否可能让用户对核心答案产生误解？能 → 事实错误；不能 → 小瑕疵
+</小瑕疵的正确定义>
+
+<涉政/法律/军事特殊规则>
+涉及国家法律法规、民生经济政策、军事的内容，只要回复中存在无权威来源的信息，按事实错误处理。
+</涉政/法律/军事特殊规则>
+
+<output_format>
+输出JSON格式：
+{
+  "reasoning": "判定过程：逐条分析每个 verified=false 的信息点，说明是否构成事实错误及原因",
+  "has_factual_error": true/false,
+  "factual_errors": [
+    {
+      "claim": "错误信息点的原文",
+      "statement_type": "assertion",
+      "answer_says": "答案中的具体表述",
+      "quoted_evidence": "搜索引用的矛盾证据",
+      "error_type": "矛盾|数据错误|人名错误|日期错误|伪造信息"
+    }
+  ],
+  "non_errors": [
+    {
+      "claim": "信息点原文",
+      "reason": "为什么不算事实错误（如：推测性表述/无法验证/信息遗漏）"
+    }
+  ]
+}
+
+## 字段说明
+- has_factual_error: 是否存在事实错误（true则判0分）
+- factual_errors: 具体的事实错误列表（只包含真正的事实错误）
+- non_errors: 不算事实错误的情况（说明理由）
+</output_format>
